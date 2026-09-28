@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat de Teste</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #111b21; color: #e9edef; height: 100dvh; display: flex; flex-direction: column; }
+
+  /* ── Header ── */
+  header { background: #202c33; padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #2a3942; flex-shrink: 0; }
+  header h1 { font-size: 16px; font-weight: 600; flex: 1; }
+  header .badge { font-size: 11px; background: #00a884; color: #fff; border-radius: 10px; padding: 2px 8px; }
+  #conn-select { background: #2a3942; color: #e9edef; border: 1px solid #374a54; border-radius: 6px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+
+  /* ── Layout ── */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 280px; background: #111b21; border-right: 1px solid #2a3942; display: flex; flex-direction: column; }
+  .sidebar-header { padding: 12px 14px; background: #202c33; font-size: 12px; color: #8696a0; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #2a3942; display: flex; align-items: center; justify-content: space-between; }
+  #to-input-wrap { padding: 8px 10px; background: #202c33; border-bottom: 1px solid #2a3942; display: flex; gap: 6px; }
+  #to-input { flex: 1; background: #2a3942; border: none; border-radius: 6px; color: #e9edef; padding: 7px 10px; font-size: 13px; outline: none; }
+  #to-input::placeholder { color: #8696a0; }
+  #btn-open-conv { background: #00a884; border: none; color: #fff; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  #btn-open-conv:hover { background: #00c49a; }
+  #conv-list { flex: 1; overflow-y: auto; }
+  .conv-item { padding: 12px 14px; cursor: pointer; border-bottom: 1px solid #1f2c33; display: flex; flex-direction: column; gap: 3px; transition: background .15s; }
+  .conv-item:hover { background: #202c33; }
+  .conv-item.active { background: #2a3942; }
+  .conv-item .conv-name { font-size: 14px; font-weight: 500; }
+  .conv-item .conv-preview { font-size: 12px; color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+  .conv-item .conv-time { font-size: 11px; color: #8696a0; }
+  .empty-convs { padding: 24px 14px; font-size: 13px; color: #8696a0; text-align: center; line-height: 1.6; }
+
+  /* ── Chat panel ── */
+  .chat-panel { flex: 1; display: flex; flex-direction: column; background: #0b141a; }
+  .chat-empty { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: #8696a0; }
+  .chat-empty svg { width: 64px; height: 64px; opacity: .3; }
+  .chat-empty p { font-size: 14px; }
+
+  /* ── Chat header ── */
+  .chat-header { background: #202c33; padding: 10px 16px; border-bottom: 1px solid #2a3942; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .chat-header .avatar { width: 38px; height: 38px; border-radius: 50%; background: #374a54; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #aaa; flex-shrink: 0; }
+  .chat-header .info { flex: 1; }
+  .chat-header .name { font-size: 15px; font-weight: 600; }
+  .chat-header .jid-label { font-size: 11px; color: #8696a0; }
+  .chat-header .conn-badge { font-size: 11px; background: #2a3942; color: #8696a0; border-radius: 10px; padding: 2px 8px; }
+
+  /* ── Messages ── */
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .bubble-wrap { display: flex; }
+  .bubble-wrap.out { justify-content: flex-end; }
+  .bubble { max-width: 65%; padding: 8px 12px; border-radius: 8px; font-size: 14px; line-height: 1.45; word-break: break-word; position: relative; }
+  .bubble-wrap.in .bubble { background: #202c33; border-radius: 0 8px 8px 8px; }
+  .bubble-wrap.out .bubble { background: #005c4b; border-radius: 8px 0 8px 8px; }
+  .bubble .meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+  .bubble .sender { font-size: 12px; font-weight: 600; color: #00a884; }
+  .bubble .conn-tag { font-size: 10px; color: #8696a0; background: #1f2c33; border-radius: 8px; padding: 0 5px; }
+  .bubble .time { font-size: 11px; color: #8696a0; margin-top: 3px; display: block; text-align: right; }
+  .media-placeholder { font-size: 12px; color: #8696a0; font-style: italic; }
+
+  /* ── Input ── */
+  .input-area { background: #202c33; padding: 10px 14px; border-top: 1px solid #2a3942; display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; }
+  #msg-input { flex: 1; background: #2a3942; border: none; border-radius: 10px; color: #e9edef; padding: 10px 14px; font-size: 14px; outline: none; resize: none; max-height: 120px; line-height: 1.4; font-family: inherit; }
+  #msg-input::placeholder { color: #8696a0; }
+  #btn-send { background: #00a884; border: none; color: #fff; border-radius: 50%; width: 42px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s; }
+  #btn-send:hover { background: #00c49a; }
+  #btn-send:disabled { background: #374a54; cursor: not-allowed; }
+  #btn-send svg { width: 20px; height: 20px; }
+
+  /* ── Status bar ── */
+  #status-bar { padding: 4px 14px; font-size: 11px; color: #8696a0; background: #111b21; border-top: 1px solid #1f2c33; flex-shrink: 0; }
+  #status-bar.error { color: #f15c6d; }
+
+  /* ── Login overlay ── */
+  #login-overlay { position: fixed; inset: 0; background: #111b21; display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .login-box { background: #202c33; border-radius: 12px; padding: 32px; width: 320px; display: flex; flex-direction: column; gap: 14px; }
+  .login-box h2 { font-size: 18px; font-weight: 600; text-align: center; }
+  .login-box p { font-size: 13px; color: #8696a0; text-align: center; line-height: 1.5; }
+  .login-box input { background: #2a3942; border: 1px solid #374a54; border-radius: 8px; color: #e9edef; padding: 10px 12px; font-size: 14px; outline: none; width: 100%; }
+  .login-box input:focus { border-color: #00a884; }
+  .login-box button { background: #00a884; border: none; color: #fff; border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .login-box button:hover { background: #00c49a; }
+  .login-error { font-size: 12px; color: #f15c6d; text-align: center; min-height: 16px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #374a54; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Login overlay (shown when not authenticated) -->
+<div id="login-overlay" style="display:none">
+  <div class="login-box">
+    <h2>Chat de Teste</h2>
+    <p>Entre com suas credenciais para acessar o chat de teste.</p>
+    <input id="login-user" type="text" placeholder="Usuário" autocomplete="username">
+    <input id="login-pass" type="password" placeholder="Senha" autocomplete="current-password">
+    <div class="login-error" id="login-error"></div>
+    <button id="btn-login">Entrar</button>
+  </div>
+</div>
+
+<header>
+  <h1>Chat de Teste</h1>
+  <span class="badge">sem DB</span>
+  <select id="conn-select" title="Socket de envio">
+    <option value="web">web (principal)</option>
+    <option value="web2">web2</option>
+    <option value="web3">web3</option>
+    <option value="groups">grupos</option>
+  </select>
+  <a href="/" style="font-size:12px;color:#8696a0;text-decoration:none;padding:5px 10px;background:#2a3942;border-radius:6px;">← App</a>
+</header>
+
+<div class="layout">
+  <!-- Sidebar: lista de conversas -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span>Conversas</span>
+      <span id="conv-count" style="font-size:11px;font-weight:400;"></span>
+    </div>
+    <div id="to-input-wrap">
+      <input id="to-input" type="text" placeholder="Número ou JID..." autocomplete="off">
+      <button id="btn-open-conv">Abrir</button>
+    </div>
+    <div id="conv-list">
+      <div class="empty-convs" id="empty-convs-msg">
+        Nenhuma conversa ainda.<br>Digite um número acima para começar.
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat panel -->
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-empty" id="chat-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <p>Selecione uma conversa ou abra uma nova</p>
+    </div>
+
+    <div id="chat-open" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div class="chat-header">
+        <div class="avatar" id="chat-avatar">?</div>
+        <div class="info">
+          <div class="name" id="chat-name">—</div>
+          <div class="jid-label" id="chat-jid">—</div>
+        </div>
+        <span class="conn-badge" id="chat-conn-badge">web</span>
+      </div>
+      <div id="messages"></div>
+      <div class="input-area">
+        <textarea id="msg-input" rows="1" placeholder="Digite uma mensagem…"></textarea>
+        <button id="btn-send" disabled title="Enviar">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="status-bar">Conectando ao stream…</div>
+
+<script>
+const API = (path, opts = {}) => {
+  const token = localStorage.getItem('wa-token');
+  return fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(opts.headers || {}) },
+  });
+};
+
+// ── Auth ──────────────────────────────────────────────────
+let token = localStorage.getItem('wa-token');
+
+async function login(user, pass) {
+  const r = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId: user, password: pass }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Falha no login');
+  localStorage.setItem('wa-token', d.token);
+  token = d.token;
+}
+
+async function checkAuth() {
+  if (!token) return false;
+  const r = await API('/api/auth/me');
+  return r.ok;
+}
+
+// ── State ─────────────────────────────────────────────────
+let activeJid = null;
+const convs = {}; // jid → { msgs: [], name }
+let selectedConn = 'web';
+
+// ── DOM refs ──────────────────────────────────────────────
+const connSelect    = document.getElementById('conn-select');
+const convList      = document.getElementById('conv-list');
+const convCount     = document.getElementById('conv-count');
+const emptyConvMsg  = document.getElementById('empty-convs-msg');
+const toInput       = document.getElementById('to-input');
+const btnOpenConv   = document.getElementById('btn-open-conv');
+const chatEmpty     = document.getElementById('chat-empty');
+const chatOpen      = document.getElementById('chat-open');
+const chatAvatar    = document.getElementById('chat-avatar');
+const chatName      = document.getElementById('chat-name');
+const chatJid       = document.getElementById('chat-jid');
+const chatConnBadge = document.getElementById('chat-conn-badge');
+const messagesEl    = document.getElementById('messages');
+const msgInput      = document.getElementById('msg-input');
+const btnSend       = document.getElementById('btn-send');
+const statusBar     = document.getElementById('status-bar');
+
+connSelect.addEventListener('change', () => {
+  selectedConn = connSelect.value;
+  if (chatConnBadge) chatConnBadge.textContent = selectedConn;
+});
+
+// ── Normalize JID ─────────────────────────────────────────
+function normalizeJid(raw) {
+  raw = raw.trim().replace(/\s/g, '');
+  if (raw.includes('@')) return raw;
+  const digits = raw.replace(/\D/g, '');
+  return digits + '@s.whatsapp.net';
+}
+
+function jidLabel(jid) {
+  if (jid.endsWith('@g.us')) return jid.replace('@g.us', ' (grupo)');
+  return jid.replace('@s.whatsapp.net', '').replace('@lid', '');
+}
+
+function initials(label) {
+  return label.substring(0, 2).toUpperCase();
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Conversations ─────────────────────────────────────────
+function ensureConv(jid, name) {
+  if (!convs[jid]) convs[jid] = { msgs: [], name: name || jidLabel(jid) };
+  else if (name && name !== jidLabel(jid)) convs[jid].name = name;
+}
+
+function renderConvList() {
+  const jids = Object.keys(convs);
+  emptyConvMsg.style.display = jids.length ? 'none' : '';
+  convCount.textContent = jids.length ? `${jids.length}` : '';
+
+  // Build items sorted by last message time
+  const sorted = jids.sort((a, b) => {
+    const la = convs[a].msgs.at(-1)?.ts || 0;
+    const lb = convs[b].msgs.at(-1)?.ts || 0;
+    return lb - la;
+  });
+
+  // Remove old items, keep active state
+  [...convList.querySelectorAll('.conv-item')].forEach(el => el.remove());
+
+  for (const jid of sorted) {
+    const c = convs[jid];
+    const last = c.msgs.at(-1);
+    const el = document.createElement('div');
+    el.className = 'conv-item' + (jid === activeJid ? ' active' : '');
+    el.dataset.jid = jid;
+    el.innerHTML = `
+      <div class="conv-name">${c.name}</div>
+      ${last ? `<div class="conv-preview">${last.fromMe ? '✓ ' : ''}${last.text}</div>
+      <div class="conv-time">${fmtTime(last.ts)}</div>` : ''}
+    `;
+    el.addEventListener('click', () => openConv(jid));
+    convList.appendChild(el);
+  }
+}
+
+function openConv(jid) {
+  ensureConv(jid);
+  activeJid = jid;
+  const c = convs[jid];
+
+  chatEmpty.style.display = 'none';
+  chatOpen.style.display = 'flex';
+
+  chatAvatar.textContent = initials(c.name || jidLabel(jid));
+  chatName.textContent = c.name || jidLabel(jid);
+  chatJid.textContent = jid;
+  chatConnBadge.textContent = selectedConn;
+
+  renderMessages();
+  btnSend.disabled = false;
+  msgInput.focus();
+  renderConvList();
+}
+
+// ── Messages ──────────────────────────────────────────────
+function renderMessages() {
+  messagesEl.innerHTML = '';
+  const msgs = convs[activeJid]?.msgs || [];
+  for (const m of msgs) appendBubble(m);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function appendBubble(m, scroll = false) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bubble-wrap ' + (m.fromMe ? 'out' : 'in');
+  const isMedia = m.text.startsWith('[') && m.text.endsWith(']');
+  wrap.innerHTML = `
+    <div class="bubble">
+      ${!m.fromMe ? `<div class="meta"><span class="sender">${m.senderName || ''}</span><span class="conn-tag">${m.connId || ''}</span></div>` : ''}
+      ${isMedia ? `<span class="media-placeholder">${m.text}</span>` : `<span>${escHtml(m.text)}</span>`}
+      <span class="time">${fmtTime(m.ts)}</span>
+    </div>
+  `;
+  messagesEl.appendChild(wrap);
+  if (scroll) messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+// ── Receive SSE ───────────────────────────────────────────
+function connectSSE() {
+  const t = localStorage.getItem('wa-token');
+  const es = new EventSource(`/api/test-chat/stream?t=${encodeURIComponent(t || '')}`);
+
+  es.onopen = () => setStatus('Conectado — mensagens em tempo real', false);
+
+  es.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      ensureConv(msg.jid, msg.senderName && !msg.fromMe ? msg.senderName : null);
+      convs[msg.jid].msgs.push(msg);
+      renderConvList();
+      if (msg.jid === activeJid) appendBubble(msg, true);
+    } catch {}
+  };
+
+  es.onerror = () => {
+    setStatus('Stream desconectado — reconectando…', true);
+    es.close();
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+// SSE com token via query param (EventSource não suporta headers customizados)
+// O middleware requireAuth precisa aceitar token via query param
+function setStatus(msg, isError = false) {
+  statusBar.textContent = msg;
+  statusBar.className = isError ? 'error' : '';
+}
+
+// ── Load history ──────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const r = await API('/api/test-chat/history');
+    if (!r.ok) return;
+    const data = await r.json();
+    for (const [jid, msgs] of Object.entries(data)) {
+      ensureConv(jid);
+      convs[jid].msgs = msgs;
+    }
+    renderConvList();
+  } catch {}
+}
+
+// ── Send ──────────────────────────────────────────────────
+async function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text || !activeJid) return;
+  msgInput.value = '';
+  msgInput.style.height = '';
+  btnSend.disabled = true;
+
+  try {
+    const r = await API('/api/test-chat/send', {
+      method: 'POST',
+      body: JSON.stringify({ to: activeJid, text, connectionId: selectedConn }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      setStatus('Erro: ' + (d.error || r.status), true);
+    }
+  } catch (err) {
+    setStatus('Erro: ' + err.message, true);
+  } finally {
+    btnSend.disabled = false;
+    msgInput.focus();
+  }
+}
+
+// ── Open conv from input ──────────────────────────────────
+btnOpenConv.addEventListener('click', () => {
+  const raw = toInput.value.trim();
+  if (!raw) return;
+  const jid = normalizeJid(raw);
+  ensureConv(jid);
+  toInput.value = '';
+  renderConvList();
+  openConv(jid);
+});
+toInput.addEventListener('keydown', e => { if (e.key === 'Enter') btnOpenConv.click(); });
+
+// ── Send button & Enter key ───────────────────────────────
+btnSend.addEventListener('click', sendMessage);
+msgInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+msgInput.addEventListener('input', () => {
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+});
+
+// ── Login overlay ─────────────────────────────────────────
+const loginOverlay = document.getElementById('login-overlay');
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    await login(u, p);
+    loginOverlay.style.display = 'none';
+    init();
+  } catch(e) { errEl.textContent = e.message; }
+});
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-login').click();
+});
+
+// ── Boot ──────────────────────────────────────────────────
+async function init() {
+  setStatus('Carregando histórico…');
+  await loadHistory();
+  connectSSE();
+}
+
+(async () => {
+  const ok = await checkAuth();
+  if (!ok) { loginOverlay.style.display = 'flex'; }
+  else { await init(); }
+})();
+</script>
+</body>
+</html>

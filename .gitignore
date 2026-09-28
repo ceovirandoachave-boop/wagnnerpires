@@ -1,0 +1,63 @@
+# Dependências
+node_modules/
+
+# Dados sensíveis — NUNCA subir
+meta-config.json
+meta-accounts.json
+clients.json
+clients-registry.json
+provisioner-admin.json
+workspace-vac-backup-*.json
+workspace-startinc.json
+workspace-virandoachave.json
+workspace-vac.json
+
+# Dados dos clientes (banco, sessões, uploads)
+data/
+baileys_auth/
+uploads/
+db.json
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Arquivos de importação específicos de clientes
+zooghy-import-leads.js
+
+# Backups gerados automaticamente
+*.bak-*
+public/app.js.bak-*
+public/index.html.bak-*
+public/style.css.bak-*
+index.html.bak-*
+db.js.bak-*
+server.js.bak-*
+provisioner.js.bak-*
+
+# Env de cada cliente
+.env
+.env.*
+!.env.example
+
+# Logs e temporários
+*.log
+.DS_Store
+Thumbs.db
+
+# Sessões antigas WhatsApp Web JS
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Segredo do provisionador
+.provisioner-secret
+
+# Qualquer pasta de autenticação de sessão
+auth_info_baileys/
+session-*/
+
+# Dados reais de workspace (tarefas/clientes) e segredo cifrado — não versionar
+workspace.json
+google-ads.enc
+
+# Backups antigos com nomenclatura diferente do padrão .bak-*
+*.backup-app-*

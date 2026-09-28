@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultores — Fila da vez</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: #0b0e14;
+    color: #e9edef;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #8696a0; font-size: 14px; margin: 0 0 24px; }
+  .card {
+    background: #141922;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #8696a0; margin-bottom: 14px; }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  input {
+    background: #0b0e14;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 8px;
+    color: #e9edef;
+    padding: 10px 12px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 160px;
+  }
+  input:focus { outline: none; border-color: #087df3; }
+  button {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-primary { background: #087df3; color: #fff; white-space: nowrap; }
+  .btn-primary:hover { background: #0a6fd6; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    flex-wrap: wrap;
+  }
+  .row:last-child { border-bottom: none; }
+  .row-info { flex: 1; min-width: 140px; }
+  .row-name { font-weight: 600; font-size: 15px; }
+  .row-meta { font-size: 12px; color: #8696a0; margin-top: 2px; }
+  .badge { font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .badge.on { color: #69db7c; }
+  .badge.off { color: #ff6b6b; }
+  .btn-sm {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.14);
+    color: #e9edef;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .btn-sm:hover { background: rgba(255,255,255,.06); }
+  .btn-danger { border-color: rgba(255,107,107,.35); color: #ff6b6b; background: transparent; }
+  .btn-danger:hover { background: rgba(255,107,107,.1); }
+  .empty { color: #8696a0; text-align: center; padding: 24px 0; font-size: 14px; }
+  .feedback { font-size: 13px; margin-top: 10px; display: none; }
+  .feedback.ok { color: #69db7c; display: block; }
+  .feedback.error { color: #ff6b6b; display: block; }
+  .lock-screen { text-align: center; padding: 80px 20px; color: #8696a0; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app" style="display:none;">
+  <h1>Consultores — Fila da vez</h1>
+  <p class="sub" id="tenant-sub">Ative, pause, edite ou adicione consultores da lista de distribuição de leads.</p>
+
+  <div class="card">
+    <div class="card-title">Adicionar consultor</div>
+    <div class="form-row">
+      <input type="text" id="new-name" placeholder="Nome do consultor">
+      <input type="text" id="new-phone" placeholder="WhatsApp (opcional, ex: 5511999998888)">
+      <button class="btn-primary" id="btn-add">+ Adicionar</button>
+    </div>
+    <div class="feedback" id="add-feedback"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Consultores cadastrados</div>
+    <div id="list"></div>
+  </div>
+</div>
+<div class="lock-screen" id="lock-screen" style="display:none;">
+  Link inválido ou não configurado.<br>Peça um novo link pra sua agência.
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get('t') || '';
+const API = '/api/public/consultants';
+
+function withToken(url) {
+  return url + (url.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(TOKEN);
+}
+
+async function api(path, opts) {
+  const res = await fetch(withToken(API + path), Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
+  if (!res.ok) {
+    let msg = 'Erro na requisição';
+    try { const j = await res.json(); msg = j.error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+function showFeedback(el, text, type) {
+  el.textContent = text;
+  el.className = 'feedback ' + type;
+  setTimeout(() => { el.className = 'feedback'; }, 3500);
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadList() {
+  const list = await api('', { method: 'GET' });
+  const el = document.getElementById('list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">Nenhum consultor cadastrado</div>';
+    return;
+  }
+  el.innerHTML = list.map(c => {
+    const lastAt = c.lastAssignedAt ? new Date(c.lastAssignedAt).toLocaleString('pt-BR') : 'Nunca';
+    return `<div class="row">
+      <div class="row-info">
+        <div class="row-name">${escapeHtml(c.name)}</div>
+        <div class="row-meta">${c.phone ? escapeHtml(c.phone) : 'sem WhatsApp cadastrado'} · Último lead: ${lastAt}</div>
+      </div>
+      <span class="badge ${c.available ? 'on' : 'off'}">${c.available ? 'Disponível' : 'Indisponível'}</span>
+      <button class="btn-sm" onclick="editPhone('${c.id}', '${escapeHtml(c.phone || '')}')">✎ Número</button>
+      <button class="btn-sm" onclick="toggleAvailable('${c.id}', ${!c.available})">${c.available ? 'Pausar' : 'Ativar'}</button>
+      <button class="btn-sm btn-danger" onclick="removeConsultant('${c.id}', '${escapeHtml(c.name)}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function addConsultant() {
+  const nameEl = document.getElementById('new-name');
+  const phoneEl = document.getElementById('new-phone');
+  const fb = document.getElementById('add-feedback');
+  const name = nameEl.value.trim();
+  if (!name) { showFeedback(fb, 'Digite o nome do consultor', 'error'); return; }
+  try {
+    await api('', { method: 'POST', body: JSON.stringify({ name, phone: phoneEl.value.trim() }) });
+    nameEl.value = ''; phoneEl.value = '';
+    showFeedback(fb, 'Consultor adicionado!', 'ok');
+    loadList();
+  } catch (e) { showFeedback(fb, e.message, 'error'); }
+}
+
+async function toggleAvailable(id, available) {
+  await api('/' + id, { method: 'PUT', body: JSON.stringify({ available }) });
+  loadList();
+}
+
+async function editPhone(id, currentPhone) {
+  const novo = window.prompt('Novo WhatsApp do consultor (só números, com DDI+DDD, ex: 5511999998888):', currentPhone || '');
+  if (novo === null) return;
+  await api('/' + id, { method: 'PUT', body: JSON.stringify({ phone: novo.trim() }) });
+  loadList();
+}
+
+async function removeConsultant(id, name) {
+  if (!window.confirm('Remover "' + name + '" da lista?')) return;
+  await api('/' + id, { method: 'DELETE' });
+  loadList();
+}
+
+document.getElementById('btn-add').addEventListener('click', addConsultant);
+document.getElementById('new-name').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('new-phone').focus(); });
+document.getElementById('new-phone').addEventListener('keydown', e => { if (e.key === 'Enter') addConsultant(); });
+
+if (!TOKEN) {
+  document.getElementById('lock-screen').style.display = 'block';
+} else {
+  document.getElementById('app').style.display = 'block';
+  loadList().catch(() => {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('lock-screen').style.display = 'block';
+  });
+}
+</script>
+</body>
+</html>
